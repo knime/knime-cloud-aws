@@ -240,9 +240,9 @@ available for auto-scaling that may fit your usage better.
 
 ## Useful Links
 
-* [KNIME Software on AWS](https://docs.knime.com/2020-12/aws_marketplace_server_guide/index.html)
+* [KNIME Software on AWS](https://docs.knime.com/latest/aws_marketplace_server_guide/index.html)
 * [KNIME Server](https://www.knime.com/knime-server)
-* [KNIME Server Admin Guide](https://docs.knime.com/2020-07/server_admin_guide/index.html)
+* [KNIME Server Admin Guide](https://docs.knime.com/latest/server_admin_guide/index.html)
 * [Amazon EC2 Auto Scaling](https://docs.aws.amazon.com/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html)
 * [Instance Monitoring with Health Checks](https://docs.aws.amazon.com/autoscaling/ec2/userguide/healthcheck.html)
 * [ASG Dynamic Scaling](https://docs.aws.amazon.com/autoscaling/ec2/userguide/as-scale-based-on-demand.html)
