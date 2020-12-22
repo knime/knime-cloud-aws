@@ -1,0 +1,578 @@
+
+AWSTemplateFormatVersion: 2010-09-09
+
+Description:
+  This template deploys an Auto Scaling Group (ASG) that is used
+  to manage KNIME Executors within a distributed deployment. The KNIME Executors
+  require a KNIME Server that must be previously deployed.
+  A metric based on CPU usage is used within a scaling policy to generate
+  scaling events. KNIME Executors are added to the scaling group as more
+  compute capacity is needed during high load times. Capacity can also be scaled down as load
+  decreases as a cost saving on computing resources. Select an existing Virtual Public Cloud (VPC).
+  From the selected VPC, supply the CIDR of the VPC and select two subnets from the VPC. The
+  Auto Scaling Group will divide KNIME Executor instances between the two subnets. The subnets
+  should be located in different Availability Zones within an AWS Region.
+
+Parameters:
+
+  vpc:
+    Type: AWS::EC2::VPC::Id
+    Description: The identifier of the VPC (Virtual Private Cloud) to use for the executor deployment. Use an existing VPC.
+
+  vpcCIDR:
+      Description: Please enter the IP range (CIDR notation) for the selected VPC used for executor deployement. The CIDR is an attribute of the VPC.
+      Type: String
+      AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$"
+      ConstraintDescription: "The CIDR defines a block of IP addresses and takes the form 0.0.0.0/0 which includes the IPv4 address and a block indicator with the value 0 to 32."
+
+  subnet1:
+    Type: AWS::EC2::Subnet::Id
+    Description: The identifier of the first subnet to use (which is tied to an Availability Zone). Select two subnets that are in different availability zones.
+
+  subnet2:
+    Type: AWS::EC2::Subnet::Id
+    Description: The identifier of the second subnet to use (which is tied to an Availability Zone). Select two subnets that are in different availability zones.
+
+  serverHost:
+    Type: String
+    Description: The IP address or hostname of the RabbitMQ server (it may be the KNIME Server). If the host is in the same VPC, use the private IP or hostname.
+    MinLength: 1
+    AllowedPattern: "^[^\\s]+[\x20-\x7F]+$"
+    ConstraintDescription: must only contain a valid IP address of fully qualified host name (no leading or trailing spaces)
+
+  virtualHost:
+    Type: String
+    Description: The name of the RabbitMQ virtual host (vhost) containing KNIME Server and KNIME Executor application queues.
+
+  rmqUser:
+    Type: String
+    Description: The RabbitMQ user name for the vhost.
+
+  rmqPassword:
+    Type: String
+    Description: The RabbitMQ password for the vhost.
+
+  keyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Select the SSH Key Pair for all executor instances to be created
+
+  instanceType:
+    Description: Instance type to use for executor instances.
+    Type: String
+    Default: m4.xlarge
+    AllowedValues:
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c5.xlarge
+      - c5.2xlarge
+      - c5.4xlarge
+      - c5.9xlarge
+      - c5.12xlarge
+      - c5.18xlarge
+      - c5.24xlarge
+      - c5.metal
+      - c5d.xlarge
+      - c5d.2xlarge
+      - c5d.4xlarge
+      - c5d.9xlarge
+      - c5d.12xlarge
+      - c5d.18xlarge
+      - c5d.24xlarge
+      - c5d.metal
+      - c5n.xlarge
+      - c5n.2xlarge
+      - c5n.4xlarge
+      - c5n.9xlarge
+      - c5n.18xlarge
+      - c5n.metal
+      - cc2.8xlarge
+      - d2.xlarge
+      - d2.2xlarge
+      - d2.4xlarge
+      - d2.8xlarge
+      - f1.2xlarge
+      - f1.4xlarge
+      - f1.16xlarge
+      - g2.2xlarge
+      - g2.8xlarge
+      - g3.4xlarge
+      - g3.8xlarge
+      - g3.16xlarge
+      - g3s.xlarge
+      - g4dn.xlarge
+      - g4dn.2xlarge
+      - g4dn.4xlarge
+      - g4dn.8xlarge
+      - g4dn.12xlarge
+      - g4dn.16xlarge
+      - h1.2xlarge
+      - h1.4xlarge
+      - h1.8xlarge
+      - h1.16xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+      - i3.xlarge
+      - i3.2xlarge
+      - i3.4xlarge
+      - i3.8xlarge
+      - i3.16xlarge
+      - i3.metal
+      - i3en.xlarge
+      - i3en.2xlarge
+      - i3en.3xlarge
+      - i3en.6xlarge
+      - i3en.12xlarge
+      - i3en.24xlarge
+      - i3en.metal
+      - inf1.xlarge
+      - inf1.2xlarge
+      - inf1.6xlarge
+      - inf1.24xlarge
+      - m1.xlarge
+      - m2.xlarge
+      - m2.2xlarge
+      - m2.4xlarge
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - m4.16xlarge
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.8xlarge
+      - m5.12xlarge
+      - m5.16xlarge
+      - m5.24xlarge
+      - m5.metal
+      - m5a.xlarge
+      - m5a.2xlarge
+      - m5a.4xlarge
+      - m5a.8xlarge
+      - m5a.12xlarge
+      - m5a.16xlarge
+      - m5a.24xlarge
+      - m5ad.xlarge
+      - m5ad.2xlarge
+      - m5ad.4xlarge
+      - m5ad.12xlarge
+      - m5ad.24xlarge
+      - m5d.xlarge
+      - m5d.2xlarge
+      - m5d.4xlarge
+      - m5d.8xlarge
+      - m5d.12xlarge
+      - m5d.16xlarge
+      - m5d.24xlarge
+      - m5d.metal
+      - m5dn.xlarge
+      - m5dn.2xlarge
+      - m5dn.4xlarge
+      - m5dn.8xlarge
+      - m5dn.12xlarge
+      - m5dn.16xlarge
+      - m5dn.24xlarge
+      - m5n.xlarge
+      - m5n.2xlarge
+      - m5n.4xlarge
+      - m5n.8xlarge
+      - m5n.12xlarge
+      - m5n.16xlarge
+      - m5n.24xlarge
+      - p2.xlarge
+      - p2.8xlarge
+      - p2.16xlarge
+      - p3.2xlarge
+      - p3.8xlarge
+      - p3.16xlarge
+      - p3dn.24xlarge
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r4.16xlarge
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.8xlarge
+      - r5.12xlarge
+      - r5.16xlarge
+      - r5.24xlarge
+      - r5.metal
+      - r5a.xlarge
+      - r5a.2xlarge
+      - r5a.4xlarge
+      - r5a.8xlarge
+      - r5a.12xlarge
+      - r5a.16xlarge
+      - r5a.24xlarge
+      - r5ad.xlarge
+      - r5ad.2xlarge
+      - r5ad.4xlarge
+      - r5ad.12xlarge
+      - r5ad.24xlarge
+      - r5d.xlarge
+      - r5d.2xlarge
+      - r5d.4xlarge
+      - r5d.8xlarge
+      - r5d.12xlarge
+      - r5d.16xlarge
+      - r5d.24xlarge
+      - r5d.metal
+      - r5dn.xlarge
+      - r5dn.2xlarge
+      - r5dn.4xlarge
+      - r5dn.8xlarge
+      - r5dn.12xlarge
+      - r5dn.16xlarge
+      - r5dn.24xlarge
+      - r5n.xlarge
+      - r5n.2xlarge
+      - r5n.4xlarge
+      - r5n.8xlarge
+      - r5n.12xlarge
+      - r5n.16xlarge
+      - r5n.24xlarge
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+      - t3.xlarge
+      - t3.2xlarge
+      - t3a.xlarge
+      - t3a.2xlarge
+      - x1.16xlarge
+      - x1.32xlarge
+      - x1e.xlarge
+      - x1e.2xlarge
+      - x1e.4xlarge
+      - x1e.8xlarge
+      - x1e.16xlarge
+      - x1e.32xlarge
+      - z1d.xlarge
+      - z1d.2xlarge
+      - z1d.3xlarge
+      - z1d.6xlarge
+      - z1d.12xlarge
+      - z1d.metal
+
+  executorGroup:
+    Description: The name of the Executor Group to assign to all Executors in this scaling group.
+    Type: String
+
+  executorResources:
+    Description: A comma delimited list of Executor resources used for pinning or routing workflows to an Executor.
+    Type: String
+
+  heapUsagePercentLimit:
+    Description: A limit on the percentage of heap usage by the Executor. When this limit is exceeded, the Executor will stop accepting jobs.
+    Type: Number
+    Default: 90
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: must be an integer number between 0 and 100
+
+  cpuUsagePercentLimit:
+    Description: A limit on the percentage of CPU usage by the Executor. When this limit is exceeded, the Executor will stop accepting jobs.
+    Type: Number
+    Default: 90
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: must be an integer number between 0 and 100
+
+  minExecutorCount:
+    Description: The minimum number of executor instances to launch.
+    Type: Number
+    Default: 1
+    MinValue: 1
+    ConstraintDescription: must be an integer number with a minimum value of 1
+
+  maxExecutorCount:
+    Description: The maximum number of executor instances to launch.
+    Type: Number
+    Default: 2
+    MinValue: 1
+    ConstraintDescription: must be an integer number with a minimum value of 1
+
+  targetUtilization:
+    Description: The target average CPU utilization for the scaling group of executors. The scaling group attempts to maintain this utilization by scaling up/down accordingly.
+    ConstraintDescription: A percentage of CPU utilization (between 5 and 95)
+    Type: Number
+    Default: 80.0
+    MinValue: 5.0
+    MaxValue: 95.0
+
+  coolDown:
+    Description: The cool down period attempts to prevent the autoscaling group from launching or terminating instances until previous scaling activites are complete.
+    ConstraintDescription: The number of seconds to allow scaling activities to complete.
+    Type: Number
+    Default: 120
+    MinValue: 60
+
+  heartbeatTimeout:
+    Description: The amount of time an Executor has to respond to a terminate request during an autoscaling group scale down event.
+    ConstraintDescription: The duration (in seconds) beyond which an Executor will be terminated during a scale down event.
+    Type: Number
+    Default: 600
+    MinValue: 120
+
+Metadata:
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: Networking Configuration
+        Parameters:
+          - vpc
+          - vpcCIDR
+          - subnet1
+          - subnet2
+      -
+        Label:
+          default: Executor Configuration
+        Parameters:
+          - instanceType
+          - keyPair
+          - executorGroup
+          - executorResources
+          - heapUsagePercentLimit
+          - cpuUsagePercentLimit
+      -
+        Label:
+          default: RabbitMQ Configuration
+        Parameters:
+          - serverHost
+          - virtualHost
+          - rmqUser
+          - rmqPassword
+      -
+        Label:
+          default: Auto-scaling Configuration
+        Parameters:
+          - minExecutorCount
+          - maxExecutorCount
+          - targetUtilization
+          - coolDown
+          - heartbeatTimeout
+
+    ParameterLabels:
+      vpc:
+        default: Which VPC should the KNIME Executors be deployed to?
+      vpcCIDR:
+        default: Enter the CIDR address property of the selected VPC
+      subnet1:
+        default: Select a (preferrably private) subnet within the selected VPC
+      subnet2:
+        default: Select a (preferrably private) subnet within the selected VPC (don't use the same one twice)
+      serverHost:
+        default: Enter the IP address or hostname of the RabbitMQ or KNIME Server (if RabbitMQ is in the same VM as the KNIME Server)
+      virtualHost:
+        default: Enter the name of the RabbitMQ vhost where KNIME Server/Executor queues are hosted
+      rmqUser:
+        default: Enter the name of the RabbitMQ user for connecting to the Virtual Host
+      rmqPassword:
+        default: Enter the password for the RabbitMQ user
+      instanceType:
+        default: Select the EC2 instance type to use for KNIME Executor instances
+      keyPair:
+        default: Select an existing Key Pair to use for access to KNIME Executor instances
+      executorGroup:
+        default: Input the name of the Executor Group to assign all KNIME Executors within this autoscaling group.
+      executorResources:
+        default: Input a comma delimited list of resource names for KNIME Executors. These resource names enable workflow pinning.
+      heapUsagePercentLimit:
+        default: Input a percentage of the Executor heap usage to set as an upper limit. A reasonable default is provided.
+      cpuUsagePercentLimit:
+          default: Input a percentage of the Executor CPU usage to set as an upper limit. A reasonable default is provided.
+      minExecutorCount:
+        default: Input the minimum number of KNIME Executors for auto-scaling
+      maxExecutorCount:
+        default: Input the maximum number of KNIME Executors for auto-scaling
+      targetUtilization:
+        default: Input the aggregate CPU utilization used as the auto-scaling metric (between 5.0 and 95.0)
+      coolDown:
+        default: Input the cooldown period (in seconds) to allow for scaling activities to complete. A reasonable default is provided.
+      heartbeatTimeout:
+        default: Input the duration (seconds) during which an Executor must respond to a terminate request from the autoscaling group. A reasonable default is provided.
+
+Resources:
+
+  instanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: "root"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "autoscaling:CompleteLifecycleAction"
+                Resource: "*"
+              - Effect: "Allow"
+                Action: "autoscaling:DescribeAutoScalingInstances"
+                Resource: "*"
+              - Effect: "Allow"
+                Action: "autoscaling:DescribeLifecycleHooks"
+                Resource: "*"
+              - Effect: "Allow"
+                Action: "autoscaling:RecordLifecycleActionHeartbeat"
+                Resource: "*"
+              - Effect: "Allow"
+                Action: "ec2:DescribeInstances"
+                Resource: "*"
+
+  instanceProfile:
+
+    Type: "AWS::IAM::InstanceProfile"
+    DependsOn: instanceRole
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref instanceRole
+
+  instanceSecurityGroup:
+
+    Type: "AWS::EC2::SecurityGroup"
+    DependsOn: instanceProfile
+    Properties:
+      GroupDescription: "KNIME Executor Security Group"
+      SecurityGroupIngress:
+      - IpProtocol: "-1"
+        CidrIp: !Ref vpcCIDR
+      SecurityGroupEgress:
+      - IpProtocol: "-1"
+        CidrIp: 0.0.0.0/0
+      VpcId: !Ref vpc
+
+  launchConfiguration:
+
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      AssociatePublicIpAddress: true
+      EbsOptimized: false
+      IamInstanceProfile: !Ref instanceProfile
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", "executor"]
+      InstanceMonitoring: true
+      InstanceType: !Ref instanceType
+      KeyName: !Ref keyPair
+      SecurityGroups:
+      - !Ref instanceSecurityGroup
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #cloud-config
+            output : { all : '| tee -a /var/log/cloud-init-output.log' }
+            write_files:
+              - owner: knime:knime
+                path: /var/opt/knime-executor.config
+                content: |
+                  KNIME_SERVER_HOST=${ServerHostName}
+                  KNIME_VIRTUAL_HOST=${virtualHost}
+                  KNIME_RMQ_USER=${rmqUser}
+                  KNIME_RMQ_PASSWORD=${rmqPassword}
+                  KNIME_EXECUTOR_GROUP=${executorGroup}
+                  KNIME_EXECUTOR_RESOURCES=${executorResources}
+                  KNIME_EXECUTOR_HEAP_USAGE_PERCENT_LIMIT=${heapUsagePercentLimit}
+                  KNIME_EXECUTOR_CPU_USAGE_PERCENT_LIMIT=${cpuUsagePercentLimit}
+            runcmd:
+              - /home/knime/executor-utils/configure_executor.sh
+
+          - ServerHostName: !Ref serverHost
+
+  scalingGroup:
+
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    DependsOn: launchConfiguration
+    Properties:
+      Cooldown: !Ref coolDown
+      HealthCheckGracePeriod: 30
+      HealthCheckType: "EC2"
+      LaunchConfigurationName: !Ref launchConfiguration
+      LifecycleHookSpecificationList:
+        - DefaultResult: ABANDON
+          HeartbeatTimeout: !Ref heartbeatTimeout
+          LifecycleHookName: knime-executor-termination-hook
+          LifecycleTransition: autoscaling:EC2_INSTANCE_TERMINATING
+      MinSize: !Ref minExecutorCount
+      MaxSize: !Ref maxExecutorCount
+      Tags:
+        - Key: "Name"
+          Value: "KNIME Executor"
+          PropagateAtLaunch: true
+      VPCZoneIdentifier:
+        - !Ref subnet1
+        - !Ref subnet2
+
+  scalingPolicy:
+
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      AdjustmentType: "ChangeInCapacity"
+      AutoScalingGroupName: !Ref scalingGroup
+      Cooldown: !Ref coolDown
+      EstimatedInstanceWarmup: 30
+      PolicyType: "TargetTrackingScaling"
+      TargetTrackingConfiguration:
+        DisableScaleIn: false
+        PredefinedMetricSpecification:
+          PredefinedMetricType: "ASGAverageCPUUtilization"
+        TargetValue: !Ref targetUtilization
+
+Mappings:
+
+  RegionMap:
+      us-east-1:
+        executor: ami-0b138fa5e7d6ab800
+      ap-northeast-1:
+        executor: ami-0e5ef4c8f1ab117fe
+      ap-northeast-2:
+        executor: ami-046966646bab3f80a
+      ap-south-1:
+        executor: ami-034e0d7395ad79c6a
+      ap-southeast-1:
+        executor: ami-00717a8e76217d5ed
+      ap-southeast-2:
+        executor: ami-0ad6392178f52485d
+      ca-central-1:
+        executor: ami-0ff8614c42e3f2d4f
+      eu-central-1:
+        executor: ami-0d28d36895cc42f4e
+      eu-north-1:
+        executor: ami-0612ff2c77b664b05
+      eu-west-1:
+        executor: ami-0d30041a97fb62844
+      eu-west-2:
+        executor: ami-0f275a545ac78a8b8
+      eu-west-3:
+        executor: ami-0704665969a3221a3
+      sa-east-1:
+        executor: ami-0dbd79d912d51b222
+      us-east-2:
+        executor: ami-04e3c7e9a113dbb02
+      us-west-1:
+        executor: ami-0c6d7765d75ab9199
+      us-west-2:
+        executor: ami-0476698e53cb75adc
