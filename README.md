@@ -47,6 +47,45 @@ of choice (BYOL or PAYG). Click on the *Continue to Subscribe* button to start t
 Until you subscribe for an Executor offering you will be unable to start Executors using the CloudFormation
 templates contained in this project.
 
+### Deploying from the Marketplace
+
+A KNIME Executor can be started directly from the AWS Marketplace in a few clicks. Select the instance type wanted and where to
+start the Executor instance. Once the instance has started successfully, you will have to logon to the instance
+using *ssh*. Logging in to the instance using ssh requires the use of the key pair you selected when launching the instance.
+The command below demonstrates the use of *ssh* to login to an Executor instance. You can also use a utility that
+supports the Secure Shell protocol. Provide the key file (PEM) and the IP address of the instance. The IP address
+can be obtained from the AWS EC2 Console.
+
+`ssh -i keyfile.pem ubuntu@10.10.0.1`
+
+Now that you are logged into the instance, a script file needs to be run to successfully start the KNIME Executor software.
+Before running the script file, a file with variable settings must be created. Use *vi* or a similar editor to create the
+file named */var/opt/knime-executor.config*. This file should be owned by the *knime* user.
+
+The example below demonstrates valid contents of the *knime-executor.config* file. Supply the values that will allow
+the Executor to connect to your KNIME Server instance. The details of the variables are provided in a later section.
+
+```
+export KNIME_SERVER_HOST=10.0.0.4
+export KNIME_VIRTUAL_HOST=knime-vhost
+export KNIME_RMQ_USER=rmquser
+export KNIME_RMQ_PASSWORD=password
+export KNIME_EXECUTOR_GROUP=mygroup
+```
+
+Once the file has been created and saved, a command needs to be run to configure the KNIME Executor. The
+command is shown below:
+
+`/home/knime/executor-utils/configure_executor.sh`
+
+After successful completion, the KNIME Executor will be operational. To check the status you can run the following command:
+
+`sudo systemctl status knime-executor`
+
+The output of the *systemctl* command will provide the current status of the KNIME Executor.
+
+The configuration and initialization of the KNIME Executor is now complete. You can log off of the instance.
+
 ### Using a Template
 
 Before deploying KNIME Executor(s), you'll first want to deploy the KNIME Server. When deploying one of the Executor templates,
