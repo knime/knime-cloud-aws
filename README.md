@@ -51,9 +51,9 @@ templates contained in this project.
 
 A KNIME Executor can be started directly from the AWS Marketplace in a few clicks. Select the instance type wanted and where to
 start the Executor instance. Once the instance has started successfully, you will have to logon to the instance
-using *ssh*. Logging in to the instance using ssh requires the use of the key pair you selected when launching the instance.
-The command below demonstrates the use of *ssh* to login to an Executor instance. You can also use a utility that
-supports the Secure Shell protocol. Provide the key file (PEM) and the IP address of the instance. The IP address
+using *ssh*. Logging onto to the instance using *ssh* requires the use of the key pair selected when launching the instance.
+The command below demonstrates the use of *ssh* to logon to an Executor instance. You can also use a utility that
+supports the Secure Shell protocol. Provide the key file (PEM) and the IP address of the instance when logging on. The IP address
 can be obtained from the AWS EC2 Console.
 
 `ssh -i keyfile.pem ubuntu@10.10.0.1`
