@@ -33,16 +33,38 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
     Description: The identifier of the second subnet to use (which is tied to an Availability Zone). Select two subnets that are in different availability zones.
 
-  serverHost:
+  knimeServerHost:
     Type: String
-    Description: The IP address or hostname of the RabbitMQ server (it may be the KNIME Server). If the host is in the same VPC, use the private IP or hostname.
+    Description: The IP address or hostname of the KNIME Server server (or RabbitMQ if both are hosted on the same server). If the host is in the same VPC, use the private IP or hostname.
     MinLength: 1
     AllowedPattern: "^[^\\s]+[\x20-\x7F]+$"
+    ConstraintDescription: must only contain a valid IP address of fully qualified host name (no leading or trailing spaces)
+
+  knimeServerPort:
+    Type: String
+    Description: The PORT number of the KNIME Server server (or RabbitMQ is both are hosted on the same server). If the host is in the same VPC, use the private IP or hostname.
+    MinLength: 1
+    AllowedPattern: "^[^\\s]+[\x30-\x39]+$"
     ConstraintDescription: must only contain a valid IP address of fully qualified host name (no leading or trailing spaces)
 
   virtualHost:
     Type: String
     Description: The name of the RabbitMQ virtual host (vhost) containing KNIME Server and KNIME Executor application queues.
+
+  rmqServerHost:
+    Type: String
+    Description: The IP address or hostname of the RabbitMQ server (if RabbitMQ is not hosted on the same server as the KNIME Server). If the host is in the same VPC, use the private IP or hostname.
+    MinLength: 1
+    AllowedPattern: "^[^\\s]+[\x20-\x7F]+$"
+    ConstraintDescription: must only contain a valid IP address of fully qualified host name (no leading or trailing spaces)
+
+  rmqServerPort:
+    Type: String
+    Description: The PORT number of the RabbitMQ server (if RabbitMQ is not hosted on the same server as the KNIME Server). If the host is in the same VPC, use the private IP or hostname.
+    MinLength: 1
+    AllowedPattern: "^[^\\s]+[\x30-\x39]+$"
+    ConstraintDescription: must only contain a valid IP address of fully qualified host name (no leading or trailing spaces)
+
 
   rmqUser:
     Type: String
@@ -353,8 +375,11 @@ Metadata:
         Label:
           default: RabbitMQ Configuration
         Parameters:
-          - serverHost
+          - knimeServerHost
+          - knimeServerPort
           - virtualHost
+          - rmqServerHost
+          - rmqServerPort
           - rmqUser
           - rmqPassword
       -
@@ -376,10 +401,16 @@ Metadata:
         default: Select a (preferrably private) subnet within the selected VPC
       subnet2:
         default: Select a (preferrably private) subnet within the selected VPC (don't use the same one twice)
-      serverHost:
-        default: Enter the IP address or hostname of the RabbitMQ or KNIME Server (if RabbitMQ is in the same VM as the KNIME Server)
+      knimeServerHost:
+        default: Enter the IP address or hostname of the KNIME Server (if RabbitMQ is in the same VM as the KNIME Server)
+      knimeServerPort:
+        default: Enter the port of the KNIME Server (if RabbitMQ is in the same VM as the KNIME Server)
       virtualHost:
         default: Enter the name of the RabbitMQ vhost where KNIME Server/Executor queues are hosted
+      rmqServerHost:
+        default: Enter the IP address or hostname of the RabbitMQ (if RabbitMQ is not in the same VM as the KNIME Server)
+      rmqServerPort:
+        default: Enter the port of RabbitMQ (if RabbitMQ is not in the same VM as the KNIME Server)
       rmqUser:
         default: Enter the name of the RabbitMQ user for connecting to the Virtual Host
       rmqPassword:
@@ -490,7 +521,10 @@ Resources:
                 path: /var/opt/knime-executor.config
                 content: |
                   KNIME_SERVER_HOST=${ServerHostName}
+                  KNIME_SERVER_PORT=${ServerHostPort}
                   KNIME_VIRTUAL_HOST=${virtualHost}
+                  KNIME_RMQ_SERVER_HOST=${RmqServerHostName}
+                  KNIME_RMQ_SERVER_PORT=${RmqServerHostPort}
                   KNIME_RMQ_USER=${rmqUser}
                   KNIME_RMQ_PASSWORD=${rmqPassword}
                   KNIME_EXECUTOR_GROUP=${executorGroup}
@@ -500,7 +534,10 @@ Resources:
             runcmd:
               - /home/knime/executor-utils/configure_executor.sh
 
-          - ServerHostName: !Ref serverHost
+          - ServerHostName: !Ref knimeServerHost
+          - ServerHostPort: !Ref knimeServerPort
+          - RmqServerHostName: !Ref rmqServerHost
+          - RmqServerHostPort: !Ref rmqServerPort
 
   scalingGroup:
 
